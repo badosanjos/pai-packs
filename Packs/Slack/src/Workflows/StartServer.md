@@ -7,7 +7,7 @@ Launches the Slack bot server for interactive use.
 User says:
 - "Start the slack server"
 - "Run slack bot"
-- "Launch kai slack"
+- "Launch PAI slack"
 
 ## Execution
 
@@ -28,7 +28,7 @@ bun run $PAI_DIR/skills/Slack/Tools/Server.ts
 Expected output:
 ```
 Loaded N active sessions
-Kai Slack Server running
+PAI Slack Server running
 Socket Mode: Connected to Slack
 HTTP API: http://localhost:9000
 ```

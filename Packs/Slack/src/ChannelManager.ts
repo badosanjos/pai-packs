@@ -290,7 +290,7 @@ COMMANDS:
   get <channel_id>  Get channel configuration
 
 NOTES:
-  - Onboarding happens automatically when @kai is mentioned in unconfigured channel
+  - Onboarding happens automatically when @bot is mentioned in unconfigured channel
   - Configs stored in: ${CHANNELS_DIR}
 `);
   }

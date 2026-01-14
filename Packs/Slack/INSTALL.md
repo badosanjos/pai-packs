@@ -228,7 +228,7 @@ bun run "$PAI_DIR/skills/Slack/Tools/Server.ts"
 Expected output:
 ```
 Loaded 0 active sessions
-Kai Slack Server running
+PAI Slack Server running
 Socket Mode: Connected to Slack
 HTTP API: http://localhost:9000
 Endpoints: /health, /send, /upload, /files/:channel, /channels, /sessions, /progress, /memory

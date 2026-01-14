@@ -53,17 +53,17 @@ bun run $PAI_DIR/skills/Slack/Tools/ServiceSetup.ts --uninstall
 ### Linux
 - Uses systemd
 - Requires sudo for system-wide install
-- Unit: kai-slack.service
-- Logs: `journalctl -u kai-slack -f`
+- Unit: pai-slack.service
+- Logs: `journalctl -u pai-slack -f`
 
 ### macOS
 - Uses launchd
 - User-level agent (no sudo required)
-- Label: com.kai.slack
+- Label: com.pai.slack
 - Logs: `$PAI_DIR/skills/Slack/State/logs/`
 
 ### Windows
 - Uses NSSM (Non-Sucking Service Manager)
 - Requires Administrator for install
-- Service name: KaiSlack
+- Service name: PAISlack
 - Logs: `$PAI_DIR/skills/Slack/State/logs/`

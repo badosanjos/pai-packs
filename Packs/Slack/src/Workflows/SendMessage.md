@@ -18,7 +18,7 @@ The Slack server must be running (either foreground or as service).
 ### Send to Channel
 
 ```bash
-bun run $PAI_DIR/skills/Slack/Tools/SlackAPI.ts send --channel "#general" --text "Hello from Kai!"
+bun run $PAI_DIR/skills/Slack/Tools/SlackAPI.ts send --channel "#general" --text "Hello from PAI!"
 ```
 
 ### Send to Thread
