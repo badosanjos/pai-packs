@@ -31,8 +31,21 @@ bun run "$PAI_DIR/skills/Slack/Tools/Server.ts"
 Before starting, ensure you have:
 
 - [ ] Bun runtime installed (`bun --version` should work)
-- [ ] Slack workspace where you can create apps
-- [ ] Admin or permission to install apps in the workspace
+- [ ] Slack workspace access
+- [ ] **Permission to create Slack Apps** in your workspace (see note below)
+
+> **Important: Slack App Creation Permissions**
+>
+> To create a Slack App, you need one of the following:
+> - **Workspace Owner or Admin** role
+> - **Permission granted by admin** to create apps (Settings > Manage Apps > App Management)
+> - Access to a **development workspace** where you have full control
+>
+> If you see "You don't have permission to install apps" when trying to install, contact your Slack workspace admin to either:
+> 1. Grant you permission to create apps
+> 2. Create the app for you using the manifest file provided ([slack-app-manifest.json](slack-app-manifest.json))
+>
+> For enterprise workspaces, you may need IT approval before proceeding.
 
 ### Step 1: Install Bun Runtime
 
@@ -50,50 +63,136 @@ For Windows native, download from https://bun.sh/docs/installation
 
 ### Step 2: Create Slack App
 
+You have two options to create the Slack App:
+
+#### Option A: Using App Manifest (Recommended - Fastest)
+
+The manifest file pre-configures all permissions, events, and Socket Mode settings automatically.
+
+1. Go to https://api.slack.com/apps
+2. Click **Create New App**
+3. Choose **From an app manifest**
+4. Select your workspace and click **Next**
+5. Choose **JSON** tab and paste the contents of [`slack-app-manifest.json`](slack-app-manifest.json):
+
+```json
+{
+  "display_information": {
+    "name": "PAI Assistant",
+    "description": "Personal AI Infrastructure - Claude-powered assistant",
+    "background_color": "#4A154B"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "PAI Assistant",
+      "always_online": true
+    }
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "app_mentions:read",
+        "channels:history",
+        "channels:read",
+        "chat:write",
+        "files:read",
+        "files:write",
+        "users:read",
+        "groups:history",
+        "groups:read",
+        "im:history",
+        "im:read",
+        "im:write",
+        "mpim:history",
+        "mpim:read",
+        "mpim:write"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "bot_events": [
+        "app_mention",
+        "message.channels",
+        "message.groups",
+        "message.im",
+        "message.mpim"
+      ]
+    },
+    "socket_mode_enabled": true
+  }
+}
+```
+
+6. Click **Next**, review the summary, then click **Create**
+7. Skip to **Step 3** below to generate tokens
+
+#### Option B: Manual Configuration
+
+If you prefer to configure manually or need custom settings:
+
 1. Go to https://api.slack.com/apps
 2. Click **Create New App**
 3. Choose **From scratch**
 4. Name your app (e.g., "PAI Assistant") and select workspace
 5. Click **Create App**
 
-### Step 3: Configure Socket Mode
-
-1. In your app settings, go to **Settings > Socket Mode**
+**Enable Socket Mode:**
+1. Go to **Settings > Socket Mode** in the sidebar
 2. Toggle **Enable Socket Mode** to ON
-3. Click **Generate Token**
-4. Name it "socket-mode" and add scope `connections:write`
-5. Click **Generate**
-6. **Copy the token** (starts with `xapp-`) - you'll need this
+3. You'll generate the token in Step 3
 
-### Step 4: Configure Bot Permissions
-
+**Configure Bot Permissions:**
 1. Go to **OAuth & Permissions** in the sidebar
 2. Under **Scopes > Bot Token Scopes**, add these scopes:
 
 | Scope | Purpose |
 |-------|---------|
-| `app_mentions:read` | Detect @mentions |
-| `chat:write` | Send messages |
-| `channels:history` | Read thread context |
-| `channels:read` | List channels |
-| `files:read` | Download files |
-| `files:write` | Upload files |
-| `users:read` | Get user info |
+| `app_mentions:read` | Detect @mentions in channels |
+| `chat:write` | Send messages and replies |
+| `channels:history` | Read thread context for session continuity |
+| `channels:read` | List and identify channels |
+| `files:read` | Download shared files |
+| `files:write` | Upload files to channels |
+| `users:read` | Get user profile information |
+| `groups:history` | Read private channel history (optional) |
+| `im:history` | Read direct message history (optional) |
+| `im:write` | Send direct messages (optional) |
 
-3. Scroll up and click **Install to Workspace**
-4. Authorize the app
-5. **Copy the Bot User OAuth Token** (starts with `xoxb-`)
-
-### Step 5: Enable Events
-
-1. Go to **Event Subscriptions**
+**Enable Events:**
+1. Go to **Event Subscriptions** in the sidebar
 2. Toggle **Enable Events** to ON
 3. Under **Subscribe to bot events**, add:
-   - `app_mention`
-   - `message.channels` (optional, for file support)
+   - `app_mention` (required)
+   - `message.channels` (for file support)
+   - `message.groups` (for private channels, optional)
+   - `message.im` (for DMs, optional)
 4. Click **Save Changes**
 
-### Step 6: Create Directory Structure
+### Step 3: Generate Tokens
+
+After creating the app (via manifest or manual), you need two tokens:
+
+**App-Level Token (for Socket Mode):**
+1. Go to **Settings > Basic Information**
+2. Scroll to **App-Level Tokens**
+3. Click **Generate Token and Scopes**
+4. Name: `socket-mode`
+5. Add scope: `connections:write`
+6. Click **Generate**
+7. **Copy the token** (starts with `xapp-`) - save this securely
+
+**Bot User OAuth Token:**
+1. Go to **OAuth & Permissions** in the sidebar
+2. Click **Install to Workspace** (or **Reinstall** if already installed)
+3. Review and authorize the permissions
+4. **Copy the Bot User OAuth Token** (starts with `xoxb-`) - save this securely
+
+> **Security Note:** Never commit these tokens to version control. They provide full access to your Slack workspace through this bot.
+
+### Step 4: Create Directory Structure
+
+### Step 4: Create Directory Structure
 
 ```bash
 # Set your PAI directory (default: ~/.claude)
@@ -113,7 +212,7 @@ mkdir -p "$PAI_DIR/skills/Slack/State/logs"
 ls -la "$PAI_DIR/skills/Slack/"
 ```
 
-### Step 7: Configure Environment
+### Step 5: Configure Environment
 
 Create or update your `.env` file:
 
@@ -138,7 +237,7 @@ EOF
 nano "$PAI_DIR/.env"
 ```
 
-### Step 8: Copy Source Files
+### Step 6: Copy Source Files
 
 Copy all TypeScript files from this pack's `src/` directory to your installation:
 
@@ -160,7 +259,7 @@ for file in Server.ts Types.ts SlackAPI.ts MemoryExtractor.ts TELOSBridge.ts Cha
 done
 ```
 
-### Step 9: Install Dependencies
+### Step 7: Install Dependencies
 
 ```bash
 cd "$PAI_DIR/skills/Slack/Tools"
@@ -172,7 +271,7 @@ cd "$PAI_DIR/skills/Slack/Tools"
 bun add @slack/bolt @slack/web-api
 ```
 
-### Step 10: Update Skill Index
+### Step 8: Update Skill Index
 
 Add the Slack skill to your skill index:
 
@@ -197,7 +296,7 @@ EOF
 fi
 ```
 
-### Step 11: Verify Installation
+### Step 9: Verify Installation
 
 Run the verification checks:
 
@@ -218,7 +317,7 @@ echo "Checking dependencies..."
 [ -d "$PAI_DIR/skills/Slack/Tools/node_modules/@slack" ] && echo "✓ Slack SDK installed" || echo "✗ Run: bun add @slack/bolt @slack/web-api"
 ```
 
-### Step 12: Start the Server
+### Step 10: Start the Server
 
 ```bash
 # Start in foreground (for testing)
@@ -238,7 +337,7 @@ Files directory: /home/user/.claude/skills/Slack/State/files
 Memory extraction: Enabled (triggers: goal:, remember:, challenge:, idea:, project:)
 ```
 
-### Step 13: Test the Integration
+### Step 11: Test the Integration
 
 1. Go to your Slack workspace
 2. Invite the bot to a channel: `/invite @YourBotName`

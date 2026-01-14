@@ -1,0 +1,57 @@
+{
+  "display_information": {
+    "name": "PAI Assistant",
+    "description": "Personal AI Infrastructure - Claude-powered assistant with session persistence and memory extraction",
+    "background_color": "#4A154B",
+    "long_description": "PAI Assistant integrates Claude AI with your Slack workspace. Features include:\n\n• Thread-based session persistence - maintains conversation context across messages\n• Memory extraction - captures goals, ideas, and important information using triggers\n• Multi-channel support with per-channel configuration\n• File upload/download capabilities\n• HTTP API for programmatic access\n\nRequires Bun runtime and PAI installation. See https://github.com/badosanjos/pai-packs for setup instructions."
+  },
+  "features": {
+    "app_home": {
+      "home_tab_enabled": false,
+      "messages_tab_enabled": true,
+      "messages_tab_read_only_enabled": false
+    },
+    "bot_user": {
+      "display_name": "PAI Assistant",
+      "always_online": true
+    }
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "app_mentions:read",
+        "channels:history",
+        "channels:read",
+        "chat:write",
+        "files:read",
+        "files:write",
+        "users:read",
+        "groups:history",
+        "groups:read",
+        "im:history",
+        "im:read",
+        "im:write",
+        "mpim:history",
+        "mpim:read",
+        "mpim:write"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "bot_events": [
+        "app_mention",
+        "message.channels",
+        "message.groups",
+        "message.im",
+        "message.mpim"
+      ]
+    },
+    "interactivity": {
+      "is_enabled": false
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": true,
+    "token_rotation_enabled": false
+  }
+}
