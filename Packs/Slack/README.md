@@ -15,6 +15,25 @@ keywords: [slack, bot, integration, session, memory, socket-mode, thread, persis
 
 Complete Slack bot integration with Socket Mode, thread-based Claude session persistence, memory extraction, HTTP API, and cross-platform service management.
 
+## Quick Start
+
+```bash
+# 1. Set environment variables in $PAI_DIR/.env
+SLACK_BOT_TOKEN=xoxb-your-token
+SLACK_APP_TOKEN=xapp-your-token
+
+# 2. Install dependencies
+cd $PAI_DIR/skills/Slack/Tools && bun install
+
+# 3. Start the server
+bun run $PAI_DIR/skills/Slack/Tools/Server.ts
+
+# 4. Test in Slack
+@YourBot hello
+```
+
+See [INSTALL.md](INSTALL.md) for detailed setup including Slack app configuration.
+
 ## Installation Prompt
 
 > You are installing the Slack Bot Integration pack for PAI. This pack provides complete Slack workspace integration enabling your AI assistant to:
@@ -376,6 +395,44 @@ Sessions expire after 4 hours of inactivity. Adjust `SESSION_EXPIRY` in Server.t
 - **Requires:** Bun runtime, Slack app tokens
 - **Optional:** TELOS skill for memory sync
 - **Conflicts:** None known
+
+## Troubleshooting
+
+### "SLACK_BOT_TOKEN not found"
+
+Ensure tokens are set in `$PAI_DIR/.env`:
+```bash
+grep SLACK $PAI_DIR/.env
+```
+
+### "Socket Mode not enabled"
+
+1. Go to https://api.slack.com/apps
+2. Select your app > Settings > Socket Mode
+3. Enable Socket Mode
+4. Generate App-Level Token with `connections:write` scope
+
+### "Bot not responding to mentions"
+
+1. Verify bot is invited to channel: `/invite @YourBot`
+2. Check bot has `app_mentions:read` scope
+3. Confirm server is running: `curl http://localhost:9000/health`
+
+### "Session not persisting"
+
+Sessions expire after 4 hours of inactivity. Check active sessions:
+```bash
+curl http://localhost:9000/sessions
+```
+
+### Server crashes on startup
+
+Check logs for missing dependencies:
+```bash
+cd $PAI_DIR/skills/Slack/Tools && bun install
+```
+
+For more issues, see [INSTALL.md](INSTALL.md#troubleshooting).
 
 ## Changelog
 
