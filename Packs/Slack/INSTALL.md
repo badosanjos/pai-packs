@@ -192,8 +192,6 @@ After creating the app (via manifest or manual), you need two tokens:
 
 ### Step 4: Create Directory Structure
 
-### Step 4: Create Directory Structure
-
 ```bash
 # Set your PAI directory (default: ~/.claude)
 export PAI_DIR="${PAI_DIR:-$HOME/.claude}"
