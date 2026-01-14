@@ -69,6 +69,17 @@ const SLACK_BOT_TOKEN = process.env.SLACK_BOT_TOKEN;
 const SLACK_APP_TOKEN = process.env.SLACK_APP_TOKEN;
 const SLACK_SIGNING_SECRET = process.env.SLACK_SIGNING_SECRET || "not-used-in-socket-mode";
 
+// Claude CLI configuration
+// Configurable allowed tools - can be restricted for safer operation
+const ALLOWED_TOOLS = process.env.PAI_SLACK_ALLOWED_TOOLS || "Bash,Read,Write,Edit,Glob,Grep,WebSearch,WebFetch";
+
+// Check if running as root (not allowed by Claude Code)
+if (process.getuid && process.getuid() === 0) {
+  console.error("ERROR: Cannot run as root user. Claude Code refuses root execution for safety.");
+  console.error("Please run as a non-root user or create a dedicated service account.");
+  process.exit(1);
+}
+
 // Session storage directory (skill-local state)
 const STATE_DIR = join(SKILL_DIR, "State");
 const SESSIONS_DIR = join(STATE_DIR, "sessions");
@@ -348,9 +359,11 @@ async function invokeClaude(
     }
 
     // Add permission flags - use streaming JSON output
+    // IMPORTANT: --dangerously-skip-permissions is required because Slack
+    // cannot handle interactive permission prompts during message processing
     args.push(
       "--dangerously-skip-permissions",
-      "--allowedTools", "Bash,Read,Write,Edit,Glob,Grep,WebSearch,WebFetch",
+      "--allowedTools", ALLOWED_TOOLS,
       "--output-format", "stream-json",
       "--verbose"
     );

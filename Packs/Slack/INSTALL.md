@@ -31,8 +31,36 @@ bun run "$PAI_DIR/skills/Slack/Tools/Server.ts"
 Before starting, ensure you have:
 
 - [ ] Bun runtime installed (`bun --version` should work)
+- [ ] Claude Code CLI installed (`claude --version` should work)
 - [ ] Slack workspace access
 - [ ] **Permission to create Slack Apps** in your workspace (see note below)
+- [ ] **Non-root user account** (see security note below)
+
+> **Critical: Claude Code Permissions & Security**
+>
+> This bot runs Claude Code in **headless mode** with `--dangerously-skip-permissions` flag because Slack cannot handle interactive permission prompts. This means:
+>
+> **Security Implications:**
+> - Claude will have access to execute bash commands, read/write files without asking
+> - The bot uses a restricted tool set: `Bash, Read, Write, Edit, Glob, Grep, WebSearch, WebFetch`
+> - All actions are logged but not interactively approved
+>
+> **Requirements:**
+> - **DO NOT run as root user** - Claude Code refuses to run with root privileges for safety
+> - Create a dedicated non-root user for the bot service (recommended)
+> - Consider running in a sandboxed environment or container
+>
+> **To configure allowed tools**, set `PAI_SLACK_ALLOWED_TOOLS` in your `.env`:
+> ```bash
+> # Default tools (recommended)
+> PAI_SLACK_ALLOWED_TOOLS="Bash,Read,Write,Edit,Glob,Grep,WebSearch,WebFetch"
+>
+> # Restricted mode (read-only, safer)
+> PAI_SLACK_ALLOWED_TOOLS="Read,Glob,Grep,WebSearch,WebFetch"
+>
+> # Extended mode (includes Task for subagents)
+> PAI_SLACK_ALLOWED_TOOLS="Bash,Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Task"
+> ```
 
 > **Important: Slack App Creation Permissions**
 >

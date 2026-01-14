@@ -322,6 +322,24 @@ bun run $PAI_DIR/skills/Slack/Tools/SlackAPI.ts upload \
 | `SLACK_APP_TOKEN` | Yes | - | App-level token (xapp-...) |
 | `PAI_SLACK_PORT` | No | 9000 | HTTP API port |
 | `PAI_DIR` | No | ~/.claude | PAI installation directory |
+| `PAI_SLACK_ALLOWED_TOOLS` | No | Bash,Read,Write,Edit,Glob,Grep,WebSearch,WebFetch | Claude tools whitelist |
+
+### Claude Code Permissions
+
+This bot runs Claude Code with `--dangerously-skip-permissions` because Slack cannot handle interactive permission prompts. To control what Claude can do:
+
+```bash
+# Restricted mode (read-only, safer for public channels)
+PAI_SLACK_ALLOWED_TOOLS="Read,Glob,Grep,WebSearch,WebFetch"
+
+# Default mode (full capability)
+PAI_SLACK_ALLOWED_TOOLS="Bash,Read,Write,Edit,Glob,Grep,WebSearch,WebFetch"
+
+# Extended mode (with subagents)
+PAI_SLACK_ALLOWED_TOOLS="Bash,Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Task"
+```
+
+> **Security Note:** The bot will NOT run as root user. Claude Code refuses root execution for safety. Create a dedicated service account for production deployments.
 
 ### Channel Configuration
 
@@ -392,11 +410,23 @@ Sessions expire after 4 hours of inactivity. Adjust `SESSION_EXPIRY` in Server.t
 
 ## Relationships
 
-- **Requires:** Bun runtime, Slack app tokens
+- **Requires:** Bun runtime, Claude Code CLI, Slack app tokens, non-root user
 - **Optional:** TELOS skill for memory sync
 - **Conflicts:** None known
 
 ## Troubleshooting
+
+### "Cannot run as root user"
+
+Claude Code refuses to run with root privileges for safety. Solutions:
+```bash
+# Create dedicated user
+sudo useradd -m -s /bin/bash pai-slack
+sudo -u pai-slack bun run $PAI_DIR/skills/Slack/Tools/Server.ts
+
+# Or run as current non-root user
+whoami  # Should NOT be "root"
+```
 
 ### "SLACK_BOT_TOKEN not found"
 
