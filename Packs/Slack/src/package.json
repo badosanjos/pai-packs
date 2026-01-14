@@ -1,0 +1,34 @@
+{
+  "name": "pai-slack-bot",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "PAI Slack Bot Integration with session persistence and memory extraction",
+  "main": "Server.ts",
+  "scripts": {
+    "start": "bun run Server.ts",
+    "health": "bun run SlackAPI.ts health",
+    "sessions": "bun run SlackAPI.ts sessions",
+    "memory": "bun run MemoryExtractor.ts stats"
+  },
+  "dependencies": {
+    "@slack/bolt": "^4.6.0",
+    "@slack/web-api": "^7.13.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "author": "badosanjos",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/badosanjos/pai-packs.git"
+  },
+  "keywords": [
+    "slack",
+    "bot",
+    "pai",
+    "claude",
+    "session",
+    "memory"
+  ]
+}
