@@ -2,6 +2,7 @@
 // PAI Slack Bot Integration - Main Server
 // Slack integration using Bolt SDK with Socket Mode
 // Supports persistent sessions per Slack thread
+// UPDATED: Now catches missed messages in threads between bot responses
 
 import { App } from "@slack/bolt";
 import { serve } from "bun";
@@ -87,9 +88,15 @@ if (!existsSync(SESSIONS_DIR)) {
   mkdirSync(SESSIONS_DIR, { recursive: true });
 }
 
+// Session data structure - now includes lastMessageTs to track missed messages
+interface ThreadSession {
+  sessionId: string;
+  lastMessageTs: string; // Timestamp of last processed message
+}
+
 // Thread to Claude session mapping
-// Key: `${channel}_${thread_ts}` -> Value: Claude session ID
-const threadSessions = new Map<string, string>();
+// Key: `${channel}_${thread_ts}` -> Value: ThreadSession
+const threadSessions = new Map<string, ThreadSession>();
 
 // Active progress message tracking
 // Key: `${channel}_${thread_ts}` -> Value: ActiveProgress
@@ -106,10 +113,13 @@ function loadSessions(): void {
       const data = JSON.parse(readFileSync(sessionsFile, "utf-8"));
       const now = Date.now();
       for (const [key, value] of Object.entries(data)) {
-        const session = value as { sessionId: string; createdAt: number };
+        const session = value as { sessionId: string; createdAt: number; lastMessageTs?: string };
         // Only load sessions that haven't expired
         if (now - session.createdAt < SESSION_EXPIRY) {
-          threadSessions.set(key, session.sessionId);
+          threadSessions.set(key, {
+            sessionId: session.sessionId,
+            lastMessageTs: session.lastMessageTs || "0",
+          });
         }
       }
       console.log(`Loaded ${threadSessions.size} active sessions`);
@@ -122,10 +132,14 @@ function loadSessions(): void {
 // Save sessions to disk
 function saveSessions(): void {
   const sessionsFile = join(SESSIONS_DIR, "thread-sessions.json");
-  const data: Record<string, { sessionId: string; createdAt: number }> = {};
+  const data: Record<string, { sessionId: string; createdAt: number; lastMessageTs: string }> = {};
   const now = Date.now();
-  for (const [key, sessionId] of threadSessions.entries()) {
-    data[key] = { sessionId, createdAt: now };
+  for (const [key, session] of threadSessions.entries()) {
+    data[key] = {
+      sessionId: session.sessionId,
+      createdAt: now,
+      lastMessageTs: session.lastMessageTs,
+    };
   }
   writeFileSync(sessionsFile, JSON.stringify(data, null, 2));
 }
@@ -176,7 +190,7 @@ const app = new App({
   signingSecret: SLACK_SIGNING_SECRET,
 });
 
-// Fetch full thread context (only used for new sessions)
+// Fetch full thread context
 async function getThreadContext(
   channel: string,
   thread_ts: string
@@ -193,7 +207,7 @@ async function getThreadContext(
   }
 }
 
-// Format thread context for Claude (only for new sessions)
+// Format thread context for Claude
 function formatThreadForClaude(messages: SlackThreadMessage[]): string {
   return messages
     .map((msg) => {
@@ -201,6 +215,19 @@ function formatThreadForClaude(messages: SlackThreadMessage[]): string {
       return `[${sender}]: ${msg.text}`;
     })
     .join("\n\n");
+}
+
+// Filter messages newer than a given timestamp (for catching missed messages)
+function filterMissedMessages(
+  messages: SlackThreadMessage[],
+  lastMessageTs: string,
+  currentMessageTs: string
+): SlackThreadMessage[] {
+  return messages.filter((msg) => {
+    const msgTs = msg.ts || "0";
+    // Include messages after lastMessageTs but before the current message
+    return msgTs > lastMessageTs && msgTs < currentMessageTs;
+  });
 }
 
 // Helper to update progress message in Slack
@@ -314,25 +341,35 @@ function parseStreamingEvent(line: string): { type: string; detail?: string } | 
 }
 
 // Invoke Claude via Claude Code CLI with session persistence and streaming progress
+// Now supports injecting missed messages for existing sessions
 async function invokeClaude(
   prompt: string,
   threadKey: string,
   channel: string,
   thread_ts: string,
   context?: ThreadContext,
-  contextPrefix?: string
+  contextPrefix?: string,
+  missedMessagesContext?: string
 ): Promise<string> {
   return new Promise(async (resolve) => {
     const claudePath = getClaudePath();
-    const existingSessionId = threadSessions.get(threadKey);
+    const existingSession = threadSessions.get(threadKey);
 
     // Build command arguments
     const args = [claudePath, "-p", prompt];
 
-    if (existingSessionId) {
-      // Resume existing session - no context injection needed
-      args.push("--resume", existingSessionId);
-      console.log(`Resuming session ${existingSessionId} for thread ${threadKey}`);
+    if (existingSession) {
+      // Resume existing session
+      args.push("--resume", existingSession.sessionId);
+
+      // If there are missed messages, prepend them to the prompt
+      if (missedMessagesContext) {
+        const fullPrompt = `## Missed Messages (conversation that happened while you were away)\n\n${missedMessagesContext}\n\n## Current Message\n\n${prompt}`;
+        args[2] = fullPrompt;
+        console.log(`Resuming session ${existingSession.sessionId} with missed messages`);
+      } else {
+        console.log(`Resuming session ${existingSession.sessionId} for thread ${threadKey}`);
+      }
     } else {
       // New session - inject context if available
       let fullPrompt = prompt;
@@ -468,9 +505,12 @@ async function invokeClaude(
           }
         }
 
-        // Store session ID for this thread
-        if (sessionId && sessionId !== existingSessionId) {
-          threadSessions.set(threadKey, sessionId);
+        // Store session ID for this thread (sessionId update handled by caller via updateSessionTimestamp)
+        if (sessionId && sessionId !== existingSession?.sessionId) {
+          threadSessions.set(threadKey, {
+            sessionId,
+            lastMessageTs: "0", // Will be updated by caller
+          });
           saveSessions();
           console.log(`Stored new session ${sessionId} for thread ${threadKey}`);
         }
@@ -518,11 +558,22 @@ async function invokeClaude(
   });
 }
 
+// Update session's lastMessageTs after processing
+function updateSessionTimestamp(threadKey: string, messageTs: string): void {
+  const session = threadSessions.get(threadKey);
+  if (session) {
+    session.lastMessageTs = messageTs;
+    saveSessions();
+    console.log(`[Session] Updated lastMessageTs for ${threadKey} to ${messageTs}`);
+  }
+}
+
 // Handle @bot mentions
 app.event("app_mention", async ({ event, say }) => {
   console.log(`Mention received in ${event.channel}: "${event.text.slice(0, 50)}..."`);
 
   const threadTs = event.thread_ts || event.ts;
+  const currentMessageTs = event.ts; // The timestamp of the current message
 
   try {
     // Remove the @bot mention from the text
@@ -582,22 +633,42 @@ app.event("app_mention", async ({ event, say }) => {
     const threadKey = getThreadKey(event.channel, threadTs);
 
     // Check if we have an existing session for this thread
-    const hasExistingSession = threadSessions.has(threadKey);
+    const existingSession = threadSessions.get(threadKey);
+    const hasExistingSession = !!existingSession;
 
-    // === CONTEXT BUILDING (for new sessions only) ===
+    // === ALWAYS FETCH THREAD CONTEXT (for both new and existing sessions) ===
+    const messages = await getThreadContext(event.channel, threadTs);
+
+    // === CONTEXT BUILDING ===
     let contextPrefix = "";
-    if (!hasExistingSession && channelConfig?.contextInjection) {
-      const contextData = buildContext(event.channel, userId);
-      contextPrefix = formatContextForClaude(contextData);
-      if (contextPrefix) {
-        console.log(`[Context] Built context for new session`);
-      }
-    }
-
-    // Get thread context only if no existing session
     let context: ThreadContext | undefined;
-    if (!hasExistingSession) {
-      const messages = await getThreadContext(event.channel, threadTs);
+    let missedMessagesContext = "";
+
+    if (hasExistingSession) {
+      // EXISTING SESSION: Check for missed messages
+      const missedMessages = filterMissedMessages(
+        messages,
+        existingSession.lastMessageTs,
+        currentMessageTs
+      );
+
+      if (missedMessages.length > 0) {
+        // Format missed messages for injection
+        missedMessagesContext = formatThreadForClaude(missedMessages);
+        console.log(`[Thread] Found ${missedMessages.length} missed messages since last interaction`);
+      } else {
+        console.log(`[Thread] No missed messages for existing session`);
+      }
+    } else {
+      // NEW SESSION: Build full context
+      if (channelConfig?.contextInjection) {
+        const contextData = buildContext(event.channel, userId);
+        contextPrefix = formatContextForClaude(contextData);
+        if (contextPrefix) {
+          console.log(`[Context] Built context for new session`);
+        }
+      }
+
       if (messages.length > 0) {
         context = {
           messages,
@@ -606,8 +677,6 @@ app.event("app_mention", async ({ event, say }) => {
         };
         console.log(`Thread context: ${messages.length} messages (new session)`);
       }
-    } else {
-      console.log(`Using existing session for thread ${threadKey}`);
     }
 
     // === MEMORY EXTRACTION ===
@@ -627,14 +696,26 @@ app.event("app_mention", async ({ event, say }) => {
       }
     }
 
-    // === INVOKE CLAUDE ===
-    const response = await invokeClaude(prompt, threadKey, event.channel, threadTs, context, contextPrefix);
+    // === INVOKE CLAUDE (now with missed messages support) ===
+    const response = await invokeClaude(
+      prompt,
+      threadKey,
+      event.channel,
+      threadTs,
+      context,
+      contextPrefix,
+      missedMessagesContext
+    );
 
     // Reply in thread
     await say({
       text: response,
       thread_ts: threadTs,
     });
+
+    // === UPDATE SESSION TIMESTAMP ===
+    // Update lastMessageTs to current message so we don't re-inject these messages next time
+    updateSessionTimestamp(threadKey, currentMessageTs);
 
     // === RECORD INTERACTION ===
     if (channelConfig?.memoryEnabled) {
@@ -726,11 +807,12 @@ const httpServer = serve({
       });
     }
 
-    // List active sessions
+    // List active sessions (updated to show lastMessageTs)
     if (url.pathname === "/sessions" && req.method === "GET") {
-      const sessions = Array.from(threadSessions.entries()).map(([key, sessionId]) => ({
+      const sessions = Array.from(threadSessions.entries()).map(([key, session]) => ({
         thread: key,
-        sessionId,
+        sessionId: session.sessionId,
+        lastMessageTs: session.lastMessageTs,
       }));
       return new Response(JSON.stringify({ sessions }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -1116,4 +1198,5 @@ const httpServer = serve({
   console.log(`State directory: ${STATE_DIR}`);
   console.log(`Files directory: ${getFilesDir()}`);
   console.log(`Memory extraction: Enabled (triggers: goal:, remember:, challenge:, idea:, project:)`);
+  console.log(`Missed messages: Enabled (catches thread messages between bot responses)`);
 })();
