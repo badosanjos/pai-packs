@@ -1,8 +1,8 @@
-# Slack Bot Integration - Installation Guide
+# PAI Slack Integration - Installation Guide
 
-Complete step-by-step installation for the Slack Bot Integration pack.
+Complete step-by-step installation for the PAI Slack Integration skill pack.
 
-## Quick Install (5 minutes)
+## Quick Install
 
 For experienced users who want to get running quickly:
 
@@ -10,15 +10,21 @@ For experienced users who want to get running quickly:
 # 1. Set PAI directory
 export PAI_DIR="${PAI_DIR:-$HOME/.claude}"
 
-# 2. Run automated install script
-curl -fsSL https://raw.githubusercontent.com/badosanjos/pai-packs/main/Packs/Slack/install.sh | bash
+# 2. Download source files
+cd "$PAI_DIR/skills/Slack/Tools"
+for file in Server.ts Types.ts SlackAPI.ts MemoryExtractor.ts TELOSBridge.ts ChannelManager.ts ProfileManager.ts ContextBuilder.ts FileManager.ts; do
+  curl -sO "https://raw.githubusercontent.com/badosanjos/pai-packs/main/Packs/pai-slack-skill/src/$file"
+done
 
-# 3. Configure tokens (edit manually)
+# 3. Install dependencies
+bun add @slack/bolt @slack/web-api
+
+# 4. Configure tokens (edit manually)
 nano "$PAI_DIR/.env"
 # Add: SLACK_BOT_TOKEN=xoxb-...
 # Add: SLACK_APP_TOKEN=xapp-...
 
-# 4. Start server
+# 5. Start server
 bun run "$PAI_DIR/skills/Slack/Tools/Server.ts"
 ```
 
@@ -281,7 +287,7 @@ cd "$PAI_DIR/skills/Slack/Tools"
 
 # Download all source files
 for file in Server.ts Types.ts SlackAPI.ts MemoryExtractor.ts TELOSBridge.ts ChannelManager.ts ProfileManager.ts ContextBuilder.ts FileManager.ts; do
-  curl -O "https://raw.githubusercontent.com/badosanjos/pai-packs/main/Packs/Slack/src/$file"
+  curl -O "https://raw.githubusercontent.com/badosanjos/pai-packs/main/Packs/pai-slack-skill/src/$file"
 done
 ```
 

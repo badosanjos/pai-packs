@@ -1,17 +1,17 @@
 ---
-name: Slack Bot Integration
-pack-id: badosanjos-slack-bot-v1.0.0
-version: 1.0.0
+name: PAI Slack Integration
+pack-id: badosanjos-slack-skill-v1.1.0
+version: 1.1.0
 author: badosanjos
-description: Complete Slack bot with Socket Mode, thread-based Claude session persistence, memory extraction, HTTP API, and cross-platform service management. Enables AI assistants to maintain context across conversations.
+description: Complete Slack bot with Socket Mode, thread-based Claude session persistence, memory extraction, HTTP API, and cross-platform service management.
 type: skill
 purpose-type: [integration, automation, productivity]
 platform: claude-code
-dependencies: ["@slack/bolt@^4.6.0", "@slack/web-api@^7.13.0"]
-keywords: [slack, bot, integration, session, memory, socket-mode, thread, persistence]
+dependencies: []
+keywords: [slack, bot, integration, session, memory, socket-mode, thread, persistence, chat, messaging]
 ---
 
-# Slack Bot Integration Pack
+# PAI Slack Integration
 
 Complete Slack bot integration with Socket Mode, thread-based Claude session persistence, memory extraction, HTTP API, and cross-platform service management.
 
