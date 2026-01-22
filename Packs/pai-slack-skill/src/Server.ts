@@ -42,6 +42,7 @@ import {
   getFileById,
   getFilesDir,
 } from "./FileManager";
+import { startPeriodicExtraction } from "./AutoMemoryExtractor";
 
 // PAI directory resolution
 const PAI_DIR = process.env.PAI_DIR || join(homedir(), ".claude");
@@ -610,7 +611,28 @@ app.event("app_mention", async ({ event, say }) => {
     // === GET CHANNEL CONFIG ===
     const channelConfig = getChannelConfig(event.channel);
 
-    if (!prompt) {
+    // Get thread key early to check for existing session
+    const threadKey = getThreadKey(event.channel, threadTs);
+    const existingSession = threadSessions.get(threadKey);
+
+    // === CHECK FOR MISSED MESSAGES BEFORE HANDLING EMPTY PROMPT ===
+    // We need to check if there are missed messages even if prompt is empty
+    let hasMissedMessages = false;
+    if (existingSession) {
+      const messages = await getThreadContext(event.channel, threadTs);
+      const missedMessages = filterMissedMessages(
+        messages,
+        existingSession.lastMessageTs,
+        event.ts
+      );
+      hasMissedMessages = missedMessages.length > 0;
+      if (hasMissedMessages) {
+        console.log(`[Thread] Found ${missedMessages.length} missed messages to inject`);
+      }
+    }
+
+    // Only return default message if no prompt AND no missed messages to process
+    if (!prompt && !hasMissedMessages) {
       await say({
         text: "Hey! How can I help?",
         thread_ts: threadTs,
@@ -629,11 +651,7 @@ app.event("app_mention", async ({ event, say }) => {
       }
     }
 
-    // Get thread key
-    const threadKey = getThreadKey(event.channel, threadTs);
-
-    // Check if we have an existing session for this thread
-    const existingSession = threadSessions.get(threadKey);
+    // existingSession and threadKey already declared above
     const hasExistingSession = !!existingSession;
 
     // === ALWAYS FETCH THREAD CONTEXT (for both new and existing sessions) ===
@@ -1199,4 +1217,8 @@ const httpServer = serve({
   console.log(`Files directory: ${getFilesDir()}`);
   console.log(`Memory extraction: Enabled (triggers: goal:, remember:, challenge:, idea:, project:)`);
   console.log(`Missed messages: Enabled (catches thread messages between bot responses)`);
+
+  // Start automatic memory extraction (every hour)
+  startPeriodicExtraction(60 * 60 * 1000);
+  console.log(`Auto memory extraction: Enabled (hourly)`);
 })();

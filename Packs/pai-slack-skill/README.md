@@ -1,7 +1,7 @@
 ---
 name: PAI Slack Integration
-pack-id: badosanjos-slack-skill-v1.1.0
-version: 1.1.0
+pack-id: badosanjos-slack-skill-v1.2.0
+version: 1.2.0
 author: badosanjos
 description: Complete Slack bot with Socket Mode, thread-based Claude session persistence, memory extraction, HTTP API, and cross-platform service management.
 type: skill
@@ -51,10 +51,10 @@ See [INSTALL.md](INSTALL.md) for detailed setup including Slack app configuratio
 | Component | Count | Description |
 |-----------|-------|-------------|
 | Core Server | 1 | Main bot server with Socket Mode |
-| TypeScript Tools | 8 | Server, API client, memory, profiles, channels, context, files, TELOS bridge |
+| TypeScript Tools | 9 | Server, API client, memory, auto-extractor, profiles, channels, context, files, TELOS bridge |
 | Workflows | 5 | StartServer, ManageService, SendMessage, SessionManagement, SyncMemory |
 | Type Definitions | 1 | 50+ TypeScript interfaces |
-| State Directories | 6 | sessions, profiles, channels, memory, files, logs |
+| State Directories | 7 | sessions, profiles, channels, memory, history, files, logs |
 
 **Dependencies:** @slack/bolt, @slack/web-api
 
@@ -86,6 +86,13 @@ This pack provides a production-ready Slack integration that:
 - Stores memories locally with confidence scoring
 - Auto-categorizes by type (health, work, family, learning, etc.)
 - Optional TELOS sync for external memory system integration
+- **Automatic hourly extraction** from active threads
+- Saves formatted thread history for future reference
+
+### Missed Messages Detection
+- Tracks last processed message timestamp per session
+- Catches messages sent between bot responses
+- Injects missed context automatically when resuming
 
 ### Channel Configuration
 - Per-channel onboarding flow (personal, project, team types)
@@ -174,6 +181,7 @@ Copy all files from `src/` to `$PAI_DIR/skills/Slack/Tools/`:
 - Types.ts
 - SlackAPI.ts
 - MemoryExtractor.ts
+- AutoMemoryExtractor.ts
 - TELOSBridge.ts
 - ChannelManager.ts
 - ProfileManager.ts
@@ -466,13 +474,24 @@ For more issues, see [INSTALL.md](INSTALL.md#troubleshooting).
 
 ## Changelog
 
+### v1.2.0 (2026-01-22)
+- **New:** AutoMemoryExtractor - Automatic hourly memory extraction from threads
+- **New:** Missed messages detection - Catches thread messages between bot responses
+- **New:** Session timestamp tracking for message continuity
+- **Improved:** Server startup now initializes periodic extraction
+- **Improved:** SKILL.md documentation with auto-extraction and missed messages sections
+
+### v1.1.0 (2025-01-20)
+- File upload/download support
+- Progress tracking API endpoints
+- Enhanced HTTP API
+
 ### v1.0.0 (2025-01-15)
 - Initial release
 - Socket Mode integration
 - Thread-based session persistence
 - Memory extraction with 6 trigger types
 - HTTP API with 12 endpoints
-- File upload/download support
 - Cross-platform service templates
 - User profile management
 - Channel onboarding flow

@@ -1,6 +1,6 @@
 ---
 name: Slack
-description: Slack bot integration with persistent thread sessions, memory extraction, and context injection. USE WHEN start slack, slack server, slack status, send slack message, slack sessions, sync memories, OR manage slack service.
+description: Slack bot integration with persistent thread sessions, memory extraction, and TELOS integration. USE WHEN start slack, slack server, slack status, send slack message, slack sessions, sync memories, OR manage slack service.
 ---
 
 # Slack - Bot Integration & Session Management
@@ -24,6 +24,7 @@ Provides complete Slack bot integration with Socket Mode, thread-based session p
 | **Server.ts** | Main bot server | `bun run $PAI_DIR/skills/Slack/Tools/Server.ts` |
 | **SlackAPI.ts** | HTTP client for API | `bun run $PAI_DIR/skills/Slack/Tools/SlackAPI.ts <command>` |
 | **MemoryExtractor.ts** | Extract memories from messages | `bun run $PAI_DIR/skills/Slack/Tools/MemoryExtractor.ts stats` |
+| **AutoMemoryExtractor.ts** | Automatic periodic extraction | `bun run $PAI_DIR/skills/Slack/Tools/AutoMemoryExtractor.ts [run|status]` |
 | **TELOSBridge.ts** | Sync memories to TELOS | `bun run $PAI_DIR/skills/Slack/Tools/TELOSBridge.ts sync` |
 
 ## Configuration
@@ -34,6 +35,7 @@ Environment variables in `$PAI_DIR/.env`:
 SLACK_BOT_TOKEN=xoxb-your-bot-token
 SLACK_APP_TOKEN=xapp-your-app-token
 PAI_SLACK_PORT=9000  # Optional, defaults to 9000
+PAI_SLACK_ALLOWED_TOOLS=Bash,Read,Write,Edit,Glob,Grep,WebSearch,WebFetch  # Optional
 ```
 
 ## Examples
@@ -73,6 +75,8 @@ User: "is the slack bot running?"
 All state stored in `$PAI_DIR/skills/Slack/State/`:
 - `sessions/thread-sessions.json` - Thread-to-Claude session mapping
 - `memory/store.json` - Extracted memories (goals, facts, challenges, ideas, projects)
+- `memory/extraction-state.json` - Auto-extraction tracking
+- `history/` - Extracted thread history
 - `profiles/` - User profile data
 - `channels/` - Channel configurations
 - `files/` - Downloaded file metadata
@@ -91,6 +95,14 @@ Use these triggers in Slack messages to capture memories:
 | `project:` | Project | `@bot project: website redesign` |
 
 Memories are stored locally in `State/memory/` and can be synced to TELOS via `TELOSBridge.ts sync`.
+
+### Automatic Memory Extraction
+
+The server runs automatic memory extraction hourly:
+- Extracts facts, goals, challenges, and decisions from thread conversations
+- Saves formatted thread history to `State/history/`
+- Tracks extraction state to avoid re-processing
+- Can be run manually: `bun run AutoMemoryExtractor.ts run`
 
 ## Multi-User Thread Awareness
 
@@ -130,6 +142,14 @@ State/profiles/
 }
 ```
 
+## Missed Messages Detection
+
+The bot automatically catches messages sent in threads between bot responses:
+- Tracks `lastMessageTs` for each session
+- On new mention, filters messages newer than last interaction
+- Injects missed messages as context: "## Missed Messages (conversation that happened while you were away)"
+- Ensures continuity even when users have side conversations
+
 ## HTTP API Endpoints
 
 | Endpoint | Method | Description |
@@ -149,3 +169,4 @@ State/profiles/
 | `/upload` | POST | Upload file to channel |
 | `/files/:channel` | GET | List files for channel |
 | `/file/:id` | GET | Get file info |
+| `/files/dir` | GET | Get files directory path |
